@@ -151,7 +151,7 @@ Browsable history is free because storage is git: [the page's change history](ht
 
 ## The demo
 
-[`demo.yml`](.github/workflows/demo.yml) fakes a parallel profiling fan-out against this repo's real wiki and produces [the live table](https://github.com/wow-look-at-my/profiling-results-matrix/wiki/Profiling-Results) with every state: three normal in-flight -> done cells (one held in-flight for ~4 minutes so you can watch the live page flip), a stale epoch-2 backfill, a job that dies without reporting (post step -> aborted), an explicit `failed` report, an untouched empty cell, and a backdated guard-off in-flight that renders lost. All jobs start simultaneously, so the logs show the push-retry loop absorbing real collisions. Its `reset` input wipes the matrix data first for a clean slate.
+[`demo.yml`](.github/workflows/demo.yml) fakes a parallel profiling fan-out against this repo's real wiki and produces [the live table](https://github.com/wow-look-at-my/profiling-results-matrix/wiki/Profiling-Results) with every state: three normal in-flight -> done cells (one held in-flight for ~4 minutes so you can watch the live page flip), a stale epoch-2 backfill, a job that ends without ever reporting (post step -> aborted), an explicit `failed` report, an untouched empty cell, and a backdated guard-off in-flight that renders lost. All jobs start simultaneously, so the logs show the push-retry loop absorbing real collisions -- and every job exits green, so the demo never reddens a commit's checks. Its `reset` input wipes the matrix data first for a clean slate.
 
 ## Development
 

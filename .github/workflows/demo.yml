@@ -8,7 +8,7 @@ name: Demo
 #   fib/O1     in-flight -> (4 min "benchmark") -> done 401.7   <- watch the live page flip
 #   fib/O2     in-flight -> done 213.9
 #   fib/O3     done with epoch override 2 (< config epoch 3)    -> STALE (struck through)
-#   matmul/O0  in-flight -> job dies without reporting          -> ABORTED (post step)
+#   matmul/O0  in-flight -> job ends without reporting          -> ABORTED (post step)
 #   matmul/O1  in-flight -> explicit "failed" report with note  -> FAILED
 #   matmul/O2  never touched                                    -> stays empty
 #   matmul/O3  in-flight backdated 2h, post guard off           -> LOST (TTL 60 min)
@@ -152,14 +152,18 @@ jobs:
           value: '95.0'
           epoch: '2'
 
-  matmul-O0-dies:
-    name: "matmul-O0: dies without reporting (EXPECTED failure -> aborted)"
+  matmul-O0-never-reports:
+    name: "matmul-O0: ends without reporting (post step records aborted)"
     needs: prepare
     runs-on: ubuntu-latest
-    # This job failing is the point: the action's post step must notice the
-    # cell is still in-flight from this run and mark it aborted. The job-level
-    # continue-on-error keeps the overall demo run green.
-    continue-on-error: true
+    # This job never sends a done/failed report: the action's post step runs
+    # at job end (post-if: always(), so on success, failure or cancellation
+    # alike), notices the cell is still in-flight from this very run, and
+    # records aborted. Exiting cleanly keeps every check run green -- the
+    # repo's required aggregate `all-builds` status counts each job on the
+    # SHA, so an intentionally red job would fail it. (The case where even
+    # the post step never runs -- a hard-died runner -- is the TTL/lost cell,
+    # matmul/O3 below.)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -173,10 +177,8 @@ jobs:
         with:
           cell: matmul/O0
           status: in-flight
-      - name: Benchmark crashes before reporting (intentional)
-        run: |
-          echo "Dying on purpose: the post step should mark matmul/O0 aborted."
-          exit 1
+      - name: Benchmark ends without ever reporting (intentional)
+        run: echo "Ending cleanly with no done/failed report -- the post step must mark matmul/O0 aborted."
 
   matmul-O1-failed:
     needs: prepare
