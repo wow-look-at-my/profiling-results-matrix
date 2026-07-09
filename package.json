@@ -1,0 +1,16 @@
+{
+  "name": "profiling-results-matrix",
+  "version": "1.0.0",
+  "description": "Self-updating profiling results matrix: a GitHub Action that records one cell per invocation and re-renders the results table in the repo wiki",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^2.0.2",
+    "@actions/exec": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.10",
+    "esbuild": "^0.28.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.3"
+  }
+}

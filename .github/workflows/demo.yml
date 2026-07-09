@@ -1,0 +1,185 @@
+name: Demo
+
+# Fakes a set of profiling runs against this repo's REAL results branch,
+# exercising every state the framework renders:
+#
+#   fib/O0     in-flight -> done 812.4
+#   fib/O1     in-flight -> (4 min "benchmark") -> done 401.7   <- watch the live page flip
+#   fib/O2     in-flight -> done 213.9
+#   fib/O3     done with epoch override 2 (< config epoch 3)    -> STALE (struck through)
+#   matmul/O0  in-flight -> job dies without reporting          -> ABORTED (post step)
+#   matmul/O1  in-flight -> explicit "failed" report with note  -> FAILED
+#   matmul/O2  never touched                                    -> stays empty
+#   matmul/O3  in-flight backdated 2h, post guard off           -> LOST (TTL 60 min)
+#
+# All jobs start together after `prepare`, so their first writes collide on
+# purpose -- the push-retry loop in the action is expected to show
+# "push rejected ... will re-fetch and re-apply" lines in these logs.
+#
+# Live page: https://github.com/wow-look-at-my/profiling-results-matrix/blob/results/Profiling-Results.md
+
+on:
+  workflow_dispatch:
+    inputs:
+      reset:
+        description: 'Wipe all recorded demo cells first (clean slate)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Reset matrix data
+        if: inputs.reset
+        uses: ./
+        with:
+          status: reset
+
+  fib-O0:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Start profiling fib/O0
+        uses: ./
+        with:
+          cell: fib/O0
+          status: in-flight
+      - name: Benchmark (pretend)
+        run: sleep 20
+      - name: Report result
+        uses: ./
+        with:
+          cell: fib/O0
+          status: done
+          value: '812.4'
+
+  fib-O1-long-runner:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Start profiling fib/O1
+        uses: ./
+        with:
+          cell: fib/O1
+          status: in-flight
+      # Long enough for a human to watch the live page show ⏳ in flight and
+      # then flip to the measured value -- incremental updates, no batching.
+      - name: Benchmark (pretend, slow)
+        run: sleep 240
+      - name: Report result
+        uses: ./
+        with:
+          cell: fib/O1
+          status: done
+          value: '401.7'
+
+  fib-O2:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Start profiling fib/O2
+        uses: ./
+        with:
+          cell: fib/O2
+          status: in-flight
+      - name: Benchmark (pretend)
+        run: sleep 30
+      - name: Report result
+        uses: ./
+        with:
+          cell: fib/O2
+          status: done
+          value: '213.9'
+
+  fib-O3-stale:
+    name: "fib-O3: result from an older epoch (renders stale)"
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      # A result measured against epoch 2 while the config is at epoch 3:
+      # it records fine but renders struck through until re-measured.
+      - name: Report backfilled result from epoch 2
+        uses: ./
+        with:
+          cell: fib/O3
+          status: done
+          value: '95.0'
+          epoch: '2'
+
+  matmul-O0-dies:
+    name: "matmul-O0: dies without reporting (EXPECTED failure -> aborted)"
+    needs: prepare
+    runs-on: ubuntu-latest
+    # This job failing is the point: the action's post step must notice the
+    # cell is still in-flight from this run and mark it aborted. The job-level
+    # continue-on-error keeps the overall demo run green.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Start profiling matmul/O0
+        uses: ./
+        with:
+          cell: matmul/O0
+          status: in-flight
+      - name: Benchmark crashes before reporting (intentional)
+        run: |
+          echo "Dying on purpose: the post step should mark matmul/O0 aborted."
+          exit 1
+
+  matmul-O1-failed:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Start profiling matmul/O1
+        uses: ./
+        with:
+          cell: matmul/O1
+          status: in-flight
+      - name: Benchmark (pretend)
+        run: sleep 15
+      - name: Report explicit failure
+        uses: ./
+        with:
+          cell: matmul/O1
+          status: failed
+          note: 'benchmark segfaulted'
+
+  # matmul/O2 is deliberately never touched: it must stay rendered as "—".
+
+  matmul-O3-lost:
+    name: "matmul-O3: in-flight past TTL (renders lost)"
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Compute a start timestamp 2 hours in the past
+        id: past
+        run: echo "ts=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      # Backdated in-flight with the post guard disabled: nothing ever reports
+      # this cell, so it stays in-flight and renders as 👻 lost (TTL 60 min).
+      # This emulates a runner that hard-died before even the post step ran.
+      - name: Start profiling matmul/O3 (backdated, guard off)
+        uses: ./
+        with:
+          cell: matmul/O3
+          status: in-flight
+          started-at: ${{ steps.past.outputs.ts }}
+          post-guard: 'false'

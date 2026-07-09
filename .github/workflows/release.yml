@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup
+
+      - name: Test
+        run: just test
+
+      - name: Validate action.yml
+        id: version
+        run: |
+          version=$(yq '.version' action.yml)
+          if [ "$version" = "null" ] || [ -z "$version" ]; then
+            echo "::error::action.yml is missing required 'version' field"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          for field in main post; do
+            file=$(yq ".runs.$field" action.yml)
+            if [ "$file" != "null" ] && [ -n "$file" ]; then
+              if [ ! -f "$file" ]; then
+                echo "::error::action.yml runs.$field points to '$file' which does not exist"
+                exit 1
+              fi
+              echo "Checking runs.$field: $file"
+              node --check "$file"
+            fi
+          done
+
+      # Everything above runs on every branch so the release path stays
+      # exercised pre-merge; only the actual tag publish is master-gated.
+      - name: Create orphan release tags
+        if: github.ref == 'refs/heads/master'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >
+          ./scripts/orphan-release.sh
+          --version "${{ steps.version.outputs.version }}"
+          --exclude ".github scripts src node_modules tsconfig.json justfile
+          package.json pnpm-lock.yaml pnpm-workspace.yaml
+          profiling-matrix.config.ts .gitignore CLAUDE.md"
