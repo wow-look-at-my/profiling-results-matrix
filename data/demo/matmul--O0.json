@@ -1,10 +1,12 @@
 {
-  "status": "in-flight",
+  "status": "aborted",
+  "note": "job ended without reporting a result",
   "epoch": 3,
-  "recordedAt": "2026-07-09T10:28:43.890Z",
+  "startedAt": "2026-07-09T10:28:43.890Z",
+  "finishedAt": "2026-07-09T10:28:45.620Z",
+  "recordedAt": "2026-07-09T10:28:45.620Z",
   "runId": "29011612813",
   "runAttempt": "1",
   "runUrl": "https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813",
-  "sha": "d25b65eb07aa0a7af694577390e34c6917ae3815",
-  "startedAt": "2026-07-09T10:28:43.890Z"
+  "sha": "d25b65eb07aa0a7af694577390e34c6917ae3815"
 }
