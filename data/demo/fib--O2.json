@@ -1,10 +1,12 @@
 {
-  "status": "in-flight",
+  "status": "done",
   "epoch": 3,
-  "recordedAt": "2026-07-09T10:28:32.976Z",
+  "recordedAt": "2026-07-09T10:29:04.188Z",
   "runId": "29011612813",
   "runAttempt": "1",
   "runUrl": "https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813",
   "sha": "d25b65eb07aa0a7af694577390e34c6917ae3815",
+  "value": "213.9",
+  "finishedAt": "2026-07-09T10:29:04.188Z",
   "startedAt": "2026-07-09T10:28:32.976Z"
 }
