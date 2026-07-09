@@ -1,10 +1,10 @@
 {
   "status": "in-flight",
   "epoch": 3,
-  "recordedAt": "2026-07-09T10:22:07.597Z",
-  "runId": "29011059462",
+  "recordedAt": "2026-07-09T10:28:34.196Z",
+  "runId": "29011612813",
   "runAttempt": "1",
-  "runUrl": "https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462",
-  "sha": "97c4533962de612b0a4c12b13fedc436f2b96ced",
-  "startedAt": "2026-07-09T08:22:07.000Z"
+  "runUrl": "https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813",
+  "sha": "d25b65eb07aa0a7af694577390e34c6917ae3815",
+  "startedAt": "2026-07-09T08:27:01.000Z"
 }
