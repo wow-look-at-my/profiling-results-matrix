@@ -1,10 +1,12 @@
 {
-  "status": "in-flight",
+  "status": "failed",
   "epoch": 3,
-  "recordedAt": "2026-07-09T10:28:35.372Z",
+  "recordedAt": "2026-07-09T10:28:52.075Z",
   "runId": "29011612813",
   "runAttempt": "1",
   "runUrl": "https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813",
   "sha": "d25b65eb07aa0a7af694577390e34c6917ae3815",
+  "note": "benchmark segfaulted",
+  "finishedAt": "2026-07-09T10:28:52.075Z",
   "startedAt": "2026-07-09T10:28:35.372Z"
 }
