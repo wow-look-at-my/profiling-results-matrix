@@ -71,26 +71,39 @@ test('per-row epoch override applies too', () => {
   assert.match(page, /~~.*1\.0 ms.*~~ <sub>e3<\/sub>/);
 });
 
-test('in-flight within TTL renders hourglass with age', () => {
+test('in-flight within TTL renders the italic word with age', () => {
   const started = new Date(NOW.getTime() - 3 * 60_000).toISOString();
   const page = render({ 'fib/O1': cell({ status: 'in-flight', startedAt: started }) });
-  assert.match(page, /\[⏳ in flight\]\(https:\/\/example\.test\/runs\/42\) <sub>started 3m ago<\/sub>/);
+  assert.match(page, /\[\*in flight\*\]\(https:\/\/example\.test\/runs\/42\) <sub>started 3m ago<\/sub>/);
 });
 
 test('in-flight past TTL renders as lost', () => {
   const started = new Date(NOW.getTime() - 2 * 60 * 60_000).toISOString();
   const page = render({ 'fib/O1': cell({ status: 'in-flight', startedAt: started }) });
-  assert.match(page, /\[👻 lost\]\(https:\/\/example\.test\/runs\/42\) <sub>started 2h ago<\/sub>/);
+  assert.match(page, /\[\*lost\*\]\(https:\/\/example\.test\/runs\/42\) <sub>started 2h ago<\/sub>/);
   // Lost is a render-time distinction only; the status stays in-flight.
 });
 
-test('aborted and failed cells render their glyphs and note', () => {
+test('aborted and failed cells render their plain words and note', () => {
   const page = render({
     'matmul/O0': cell({ status: 'aborted', note: 'job ended without reporting a result' }),
     'matmul/O1': cell({ status: 'failed', note: 'benchmark segfaulted' }),
   });
-  assert.match(page, /\[💥 aborted\]\(.*\) <sub>job ended without reporting a result<\/sub>/);
-  assert.match(page, /\[❌ failed\]\(.*\) <sub>benchmark segfaulted<\/sub>/);
+  assert.match(page, /\[\*aborted\*\]\(.*\) <sub>job ended without reporting a result<\/sub>/);
+  assert.match(page, /\[\*failed\*\]\(.*\) <sub>benchmark segfaulted<\/sub>/);
+});
+
+test('no emoji anywhere in the rendered page (cells or legend)', () => {
+  const started = new Date(NOW.getTime() - 3 * 60_000).toISOString();
+  const page = render({
+    'fib/O0': cell({ value: '812.4' }),
+    'fib/O1': cell({ status: 'in-flight', startedAt: started }),
+    'matmul/O0': cell({ status: 'aborted' }),
+    'matmul/O1': cell({ status: 'failed', epoch: 2 }),
+  });
+  // Everything the page needs fits in Latin-1 plus typographic punctuation;
+  // emoji and other symbol/pictograph codepoints must not appear.
+  assert.doesNotMatch(page, /[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{2B00}-\u{2BFF}\u{231A}-\u{23FF}]/u);
 });
 
 test('unrecorded cells render an em dash', () => {
@@ -105,7 +118,7 @@ test('header carries epoch, UTC timestamp, event and run link; legend and footer
   assert.match(page, /last update 2026-07-09 12:00 UTC/);
   assert.match(page, /`fib\/O0` → done by \[run 42\]\(https:\/\/example\.test\/runs\/42\)/);
   assert.match(page, /### Legend/);
-  assert.match(page, /👻 lost \| in flight for more than 60 min/);
+  assert.match(page, /\*lost\* \| in flight for more than 60 min/);
   assert.match(page, /do not edit by hand/);
   assert.match(page, /\[page history\]\(https:\/\/example\.test\/commits\/results\/Profiling-Results\.md\)/);
   assert.match(page, /data\/demo\/\*\.json/);

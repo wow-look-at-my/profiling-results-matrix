@@ -43,13 +43,13 @@ export function renderPage(config: MatrixConfig, cells: ReadonlyMap<string, Cell
   lines.push('| Cell | Meaning |');
   lines.push('|---|---|');
   lines.push(`| **N${unit}** | measured value, linked to the run that produced it |`);
-  lines.push('| ⏳ in flight | a job has started measuring this cell and has not reported yet |');
+  lines.push('| *in flight* | a job has started measuring this cell and has not reported yet |');
   lines.push(
-    `| 👻 lost | in flight for more than ${config.inFlightTtlMinutes} min (TTL) -- the job most ` +
+    `| *lost* | in flight for more than ${config.inFlightTtlMinutes} min (TTL) -- the job most ` +
       'likely died without cleanup |',
   );
-  lines.push("| 💥 aborted | the job ended without reporting a result (recorded by the action's post step) |");
-  lines.push('| ❌ failed | the job explicitly reported failure |');
+  lines.push("| *aborted* | the job ended without reporting a result (recorded by the action's post step) |");
+  lines.push('| *failed* | the job explicitly reported failure |');
   lines.push(
     '| ~~struck through~~ <sub>eN</sub> | stale: recorded against epoch N, older than the current ' +
       'effective epoch -- awaiting re-measurement |',
@@ -76,6 +76,9 @@ function renderCell(
 ): string {
   if (!cell) return '—';
 
+  // Plain words, no emoji (user feedback): measured values are bold, every
+  // non-value state is an italicized word -- distinguishable at a glance and
+  // clean in GitHub-rendered tables.
   let body: string;
   const sub: string[] = [];
   switch (cell.status) {
@@ -85,21 +88,21 @@ function renderCell(
       break;
     }
     case 'failed':
-      body = `[❌ failed](${cell.runUrl})`;
+      body = `[*failed*](${cell.runUrl})`;
       break;
     case 'aborted':
-      body = `[💥 aborted](${cell.runUrl})`;
+      body = `[*aborted*](${cell.runUrl})`;
       break;
     case 'in-flight': {
       const ageMs = now.getTime() - Date.parse(cell.startedAt ?? cell.recordedAt);
       const lost = ageMs > config.inFlightTtlMinutes * 60_000;
-      body = lost ? `[👻 lost](${cell.runUrl})` : `[⏳ in flight](${cell.runUrl})`;
+      body = lost ? `[*lost*](${cell.runUrl})` : `[*in flight*](${cell.runUrl})`;
       sub.push(`started ${humanAge(ageMs)} ago`);
       break;
     }
     default:
       // Forward compatibility: an unknown status in a data file still renders.
-      body = `[${escapeCellText(String(cell.status))}](${cell.runUrl})`;
+      body = `[*${escapeCellText(String(cell.status))}*](${cell.runUrl})`;
   }
 
   // Staleness applies to reported results (done/failed): an older-epoch result
