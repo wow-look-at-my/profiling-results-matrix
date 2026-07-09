@@ -1,11 +1,11 @@
 # Demo profiling results
 
-<sub>matrix `demo` · epoch **3** · last update 2026-07-09 10:11 UTC · `matmul/O3` → in-flight by [run 29010750661](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29010750661)</sub>
+<sub>matrix `demo` · epoch **3** · last update 2026-07-09 10:11 UTC · `matmul/O0` → in-flight by [run 29010750661](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29010750661)</sub>
 
 | | -O0 | -O1 | -O2 | -O3 |
 |---|---|---|---|---|
 | `fib(35)` (recursive) | — | — | — | — |
-| 512×512 matmul | — | — | — | [👻 lost](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29010750661) <sub>started 2h ago</sub> |
+| 512×512 matmul | [⏳ in flight](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29010750661) <sub>started 0m ago</sub> | — | — | [👻 lost](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29010750661) <sub>started 2h ago</sub> |
 
 ### Legend
 
