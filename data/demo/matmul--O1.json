@@ -1,12 +1,10 @@
 {
-  "status": "failed",
+  "status": "in-flight",
   "epoch": 3,
-  "recordedAt": "2026-07-09T10:22:31.357Z",
-  "runId": "29011059462",
+  "recordedAt": "2026-07-09T10:28:35.372Z",
+  "runId": "29011612813",
   "runAttempt": "1",
-  "runUrl": "https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462",
-  "sha": "97c4533962de612b0a4c12b13fedc436f2b96ced",
-  "note": "benchmark segfaulted",
-  "finishedAt": "2026-07-09T10:22:31.357Z",
-  "startedAt": "2026-07-09T10:22:14.396Z"
+  "runUrl": "https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813",
+  "sha": "d25b65eb07aa0a7af694577390e34c6917ae3815",
+  "startedAt": "2026-07-09T10:28:35.372Z"
 }
