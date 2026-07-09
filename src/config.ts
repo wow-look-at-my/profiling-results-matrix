@@ -27,17 +27,13 @@ export async function loadConfig(configPath: string): Promise<MatrixConfig> {
     mod = await nativeImport(pathToFileURL(configPath).href);
   } catch (err) {
     throw new Error(
-      `failed to load matrix config ${configPath}: ${errMsg(err)}\n` +
+      `failed to load matrix config ${configPath}: ${err instanceof Error ? err.message : String(err)}\n` +
         `Hints: the config must be erasable-syntax-only TypeScript (no enums/namespaces/parameter ` +
         `properties), must use "import type" for type-only imports, and -- if the nearest ` +
         `package.json sets "type": "commonjs" -- must be renamed to .mts.`,
     );
   }
   return validateConfig(interopDefault(mod), configPath);
-}
-
-function errMsg(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
 }
 
 /**
@@ -72,9 +68,9 @@ export function validateConfig(raw: unknown, source: string): MatrixConfig {
   }
   const cfg = raw as Record<string, unknown>;
 
-  const key = (path: string, v: unknown, required = true): void => {
+  const key = (path: string, v: unknown): void => {
     if (v === undefined || v === null) {
-      if (required) bad(path, 'is required');
+      bad(path, 'is required');
       return;
     }
     if (typeof v !== 'string' || !KEY_RE.test(v)) {

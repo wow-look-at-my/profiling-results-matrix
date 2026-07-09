@@ -1,9 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { readAllCells } from './cells';
-import type { Storage } from './main';
 import { FRAMEWORK_URL, renderPage } from './render';
-import type { MatrixConfig } from './types';
+import type { MatrixConfig, Storage } from './types';
 
 const INDEX_MARKER = '<!-- profiling-results-matrix index -->';
 

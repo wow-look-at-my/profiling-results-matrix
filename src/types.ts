@@ -39,6 +39,22 @@ export interface MatrixConfig {
   cols: AxisEntry[];
 }
 
+/** Where the results live and how the rendered page is reached. */
+export interface Storage {
+  remoteUrl: string;
+  branch: string;
+  /** File the rendered page is written to (repo-root relative). */
+  pageFile: string;
+  /** Browsable URL of the rendered page. */
+  pageUrl: string;
+  /** Browsable URL of the page's change history. */
+  historyUrl: string;
+  /** Small index file kept next to the page (branch-root README). */
+  indexFile: string;
+  /** Link target the index uses to reach the page. */
+  indexLinkTarget: string;
+}
+
 /** Status values stored in cell data files. */
 export type CellStatus = 'in-flight' | 'done' | 'failed' | 'aborted';
 

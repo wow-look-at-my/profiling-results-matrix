@@ -6,7 +6,7 @@ import { readCell, writeCell } from './cells';
 import { readActionEnv, type ActionEnv } from './env';
 import { writeRenderedPage } from './publish';
 import { GitStore } from './store';
-import type { CellData, MatrixConfig } from './types';
+import type { CellData, MatrixConfig, Storage } from './types';
 
 /** State key: cell the post step must guard (set for in-flight reports). */
 export const GUARD_CELL_STATE = 'guardCell';
@@ -45,22 +45,6 @@ export async function runMain(): Promise<void> {
   core.setOutput('page-url', storage.pageUrl);
   core.info(`Results page: ${storage.pageUrl}`);
   await summarize(`[${config.title}](${storage.pageUrl}) updated: ${status}`);
-}
-
-/** Where the results live and how the rendered page is reached. */
-export interface Storage {
-  remoteUrl: string;
-  branch: string;
-  /** File the rendered page is written to (repo-root relative). */
-  pageFile: string;
-  /** Browsable URL of the rendered page. */
-  pageUrl: string;
-  /** Browsable URL of the page's change history. */
-  historyUrl: string;
-  /** Small index file kept next to the page (branch-root README). */
-  indexFile: string;
-  /** Link target the index uses to reach the page. */
-  indexLinkTarget: string;
 }
 
 /**
@@ -136,7 +120,7 @@ async function reportCell(
   const result = await store.update(async (dir) => {
     const now = new Date();
     const base: CellData = {
-      status: status === 'in-flight' ? 'in-flight' : status,
+      status,
       epoch: recordEpoch,
       recordedAt: now.toISOString(),
       runId: env.runId,
