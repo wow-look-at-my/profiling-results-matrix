@@ -12,10 +12,12 @@ name: Demo
 #   matmul/O2  never touched                                    -> stays empty
 #   matmul/O3  in-flight backdated 2h, post guard off           -> LOST (TTL 60 min)
 #
-# `prepare` builds the action bundle once and shares it as an artifact, so the
-# reporter jobs start near-simultaneously and their first writes pile up on
-# the results branch on purpose -- expect "push rejected ... will re-fetch and
-# re-apply" retry lines in these logs (that is the concurrency loop working).
+# `prepare` builds the action bundle once and shares it as an artifact, and
+# every reporter job then waits for a common clock boundary before its first
+# write: real profiling fan-outs are dozens of jobs wide, so collisions on the
+# results branch are routine -- this 7-job demo lines its writes up to hit the
+# same window reliably. Expect "push rejected ... will re-fetch and re-apply"
+# retry lines in these logs: that is the concurrency loop working as designed.
 #
 # Live page: https://github.com/wow-look-at-my/profiling-results-matrix/blob/results/Profiling-Results.md
 
@@ -60,6 +62,8 @@ jobs:
         with:
           name: action-dist
           path: dist
+      - name: Line up on a clock boundary (reliably collide the first writes)
+        run: sleep $(( 90 - $(date +%s) % 90 ))
       - name: Start profiling fib/O0
         uses: ./
         with:
@@ -83,6 +87,8 @@ jobs:
         with:
           name: action-dist
           path: dist
+      - name: Line up on a clock boundary (reliably collide the first writes)
+        run: sleep $(( 90 - $(date +%s) % 90 ))
       - name: Start profiling fib/O1
         uses: ./
         with:
@@ -108,6 +114,8 @@ jobs:
         with:
           name: action-dist
           path: dist
+      - name: Line up on a clock boundary (reliably collide the first writes)
+        run: sleep $(( 90 - $(date +%s) % 90 ))
       - name: Start profiling fib/O2
         uses: ./
         with:
@@ -134,6 +142,8 @@ jobs:
           path: dist
       # A result measured against epoch 2 while the config is at epoch 3:
       # it records fine but renders struck through until re-measured.
+      - name: Line up on a clock boundary (reliably collide the first writes)
+        run: sleep $(( 90 - $(date +%s) % 90 ))
       - name: Report backfilled result from epoch 2
         uses: ./
         with:
@@ -156,6 +166,8 @@ jobs:
         with:
           name: action-dist
           path: dist
+      - name: Line up on a clock boundary (reliably collide the first writes)
+        run: sleep $(( 90 - $(date +%s) % 90 ))
       - name: Start profiling matmul/O0
         uses: ./
         with:
@@ -175,6 +187,8 @@ jobs:
         with:
           name: action-dist
           path: dist
+      - name: Line up on a clock boundary (reliably collide the first writes)
+        run: sleep $(( 90 - $(date +%s) % 90 ))
       - name: Start profiling matmul/O1
         uses: ./
         with:
@@ -207,6 +221,8 @@ jobs:
       # Backdated in-flight with the post guard disabled: nothing ever reports
       # this cell, so it stays in-flight and renders as 👻 lost (TTL 60 min).
       # This emulates a runner that hard-died before even the post step ran.
+      - name: Line up on a clock boundary (reliably collide the first writes)
+        run: sleep $(( 90 - $(date +%s) % 90 ))
       - name: Start profiling matmul/O3 (backdated, guard off)
         uses: ./
         with:
