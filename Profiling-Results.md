@@ -1,10 +1,10 @@
 # Demo profiling results
 
-<sub>matrix `demo` · epoch **3** · last update 2026-07-09 10:22 UTC · `matmul/O1` → in-flight by [run 29011059462](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462)</sub>
+<sub>matrix `demo` · epoch **3** · last update 2026-07-09 10:22 UTC · `fib/O0` → in-flight by [run 29011059462](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462)</sub>
 
 | | -O0 | -O1 | -O2 | -O3 |
 |---|---|---|---|---|
-| `fib(35)` (recursive) | [**812.4 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29010750661) | [⏳ in flight](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462) <sub>started 0m ago</sub> | [**213.9 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29010750661) | ~~[**95.0 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462)~~ <sub>e2</sub> |
+| `fib(35)` (recursive) | [⏳ in flight](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462) <sub>started 0m ago</sub> | [⏳ in flight](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462) <sub>started 0m ago</sub> | [**213.9 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29010750661) | ~~[**95.0 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462)~~ <sub>e2</sub> |
 | 512×512 matmul | [⏳ in flight](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462) <sub>started 0m ago</sub> | [⏳ in flight](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462) <sub>started 0m ago</sub> | — | [👻 lost](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011059462) <sub>started 2h ago</sub> |
 
 ### Legend
