@@ -29,10 +29,6 @@ on:
         description: 'Wipe all recorded demo cells first (clean slate)'
         type: boolean
         default: false
-  # TEMPORARY (remove before merge): session tokens cannot workflow_dispatch,
-  # so exercise the demo on push while iterating; push-triggered runs reset.
-  push:
-    branches: [claude/profiling-results-matrix]
 
 permissions:
   contents: write
@@ -48,7 +44,7 @@ jobs:
           name: action-dist
           path: dist/
       - name: Reset matrix data
-        if: inputs.reset || github.event_name == 'push'
+        if: inputs.reset
         uses: ./
         with:
           status: reset

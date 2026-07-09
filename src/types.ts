@@ -64,7 +64,7 @@ export interface Storage {
   pageUrl: string;
   /** Browsable URL of the page's change history. */
   historyUrl: string;
-  /** Small index file kept next to the page (branch-root README). */
+  /** Small index file kept next to the page (wiki Home.md / branch-root README.md). */
   indexFile: string;
   /** Link target the index uses to reach the page. */
   indexLinkTarget: string;
