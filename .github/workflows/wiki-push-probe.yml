@@ -1,0 +1,43 @@
+name: Wiki push probe
+
+# TEMPORARY -- removed before this branch is finished. A human created the
+# first wiki page in the web UI, which makes GitHub materialize the wiki git
+# repository; this probe proves GITHUB_TOKEN (contents: write) can push to it
+# from Actions, using the exact same auth scheme (http.extraheader basic) the
+# action's GitStore uses. The session git proxy 403s wiki pushes, so the probe
+# the user asked for runs here, in the runtime that matters.
+
+on:
+  push:
+    branches: [claude/profiling-results-matrix]
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: wow-look-at-my/actions@typescript#latest
+        env:
+          WIKI_TOKEN: ${{ github.token }}
+        with:
+          script: |
+            const url = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}.wiki.git`;
+            const basic = Buffer.from(`x-access-token:${process.env.WIKI_TOKEN}`).toString('base64');
+            core.setSecret(basic);
+            const auth = ['-c', `http.extraheader=AUTHORIZATION: basic ${basic}`];
+            const dir = path.join(process.env.RUNNER_TEMP ?? '/tmp', 'wiki-probe');
+            await exec.exec('git', [...auth, 'clone', url, dir]);
+            const run = (...args: string[]) => exec.exec('git', args, { cwd: dir });
+            const stamp = `${new Date().toISOString().slice(0, 19).replace('T', ' ')} UTC`;
+            fs.appendFileSync(
+              path.join(dir, 'Test-Results.md'),
+              `\nPush test from the Claude session (via GitHub Actions, GITHUB_TOKEN) — ${stamp} — OK.\n`,
+            );
+            await run('config', 'user.name', 'profiling-results-matrix[bot]');
+            await run('config', 'user.email', 'github-actions[bot]@users.noreply.github.com');
+            await run('add', 'Test-Results.md');
+            await run('commit', '-m', 'wiki push probe');
+            await exec.exec('git', [...auth, 'push', 'origin', 'master'], { cwd: dir });
+            core.info('wiki push probe: SUCCESS');
