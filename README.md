@@ -1,8 +1,8 @@
 # profiling-results-matrix
 
-A GitHub Action that keeps a **profiling results table** up to date, one cell at a time, with no human in the loop. It exists because hand-maintained results tables rot: values get copy-pasted from run logs into a README, most cells sit at `?` forever, and entries stay "(in flight)" eternally because the session that dispatched the run died before the numbers landed (see the [wow-look-at-my/gcc README table](https://github.com/wow-look-at-my/gcc#compile-time-performance-work) this framework replaces). With this action, a profiling job *is* the table maintainer: it marks its cell in-flight when it starts, reports the measured value when it finishes, and the rendered table updates itself incrementally on the repo's `results` branch. Jobs that die without reporting are auto-marked **aborted**; jobs that vanish without a trace surface as **lost** after a TTL; results from an old generation render **struck through** until re-measured. The table can rot in exactly one way -- visibly -- never silently.
+A GitHub Action that keeps a **profiling results table** up to date, one cell at a time, with no human in the loop. It exists because hand-maintained results tables rot: values get copy-pasted from run logs into a README, most cells sit at `?` forever, and entries stay "(in flight)" eternally because the session that dispatched the run died before the numbers landed (see the [wow-look-at-my/gcc README table](https://github.com/wow-look-at-my/gcc#compile-time-performance-work) this framework replaces). With this action, a profiling job *is* the table maintainer: it marks its cell in-flight when it starts, reports the measured value when it finishes, and the rendered table updates itself incrementally on the repo's wiki (or on an orphan `results` branch until the wiki exists -- see [Storage](#storage-layout-and-history)). Jobs that die without reporting are auto-marked **aborted**; jobs that vanish without a trace surface as **lost** after a TTL; results from an old generation render **struck through** until re-measured. The table can rot in exactly one way -- visibly -- never silently.
 
-**Live demo:** [rendered table](https://github.com/wow-look-at-my/profiling-results-matrix/blob/results/Profiling-Results.md) · [demo workflow](.github/workflows/demo.yml) that produces it, exercising every state.
+**Live demo:** [rendered table](https://github.com/wow-look-at-my/profiling-results-matrix/wiki/Profiling-Results) (on this repo's wiki) · [demo workflow](.github/workflows/demo.yml) that produces it, exercising every state.
 
 ## Quickstart
 
@@ -11,7 +11,7 @@ A GitHub Action that keeps a **profiling results table** up to date, one cell at
 
 ```yaml
 permissions:
-  contents: write   # the action pushes results to the `results` branch
+  contents: write   # the action pushes results to the wiki (or `results` branch)
 
 jobs:
   profile-fib-O2:
@@ -70,7 +70,8 @@ import type { MatrixConfig } from './src/types'; // optional; runtime validation
 const config = {
   id: 'demo',                  // data files live under data/<id>/
   title: 'Demo profiling results',
-  page: 'Profiling-Results',   // rendered to <page>.md on the results branch
+  page: 'Profiling-Results',   // wiki page name (<page>.md on the results branch)
+  storage: 'auto',             // 'auto' (default) | 'wiki' | 'results-branch'
   epoch: 3,                    // current generation; bump to invalidate old results
   unit: 'ms',
   inFlightTtlMinutes: 60,      // in-flight older than this renders as lost
@@ -107,7 +108,7 @@ To invalidate results after the thing being measured changed: bump `epoch` in th
 Concurrent reporters are the normal case (a matrix usually fills from a parallel fan-out), so the write path is designed for them:
 
 - **One JSON file per cell.** Parallel reporters touch disjoint paths; there is no shared mutable file except the rendered page, which is *derived*.
-- **Every write is: sync -> mutate -> render -> push.** The action clones the `results` branch fresh, writes its own cell file, regenerates the page markdown from **all** merged cell files + config, commits, and pushes.
+- **Every write is: sync -> mutate -> render -> push.** The action clones the storage branch fresh, writes its own cell file, regenerates the page markdown from **all** merged cell files + config, commits, and pushes.
 - **Push rejection is the serialization point.** If a concurrent writer got its push in first, ours is rejected as non-fast-forward. The action then fetches, hard-resets to the new remote head, **redoes the entire mutation on the fresh state** (cell write + full re-render), and pushes again -- up to 8 attempts with jittered 1-5 s backoff. Because the page is recomputed from data on every attempt rather than patched, it can never text-conflict, and the winning history is a clean line of one commit per cell write.
 - **Same-cell races are last-writer-wins.** The push loop linearizes all writes; whichever report for a given cell pushes last is the one that stays. This is deliberate: reports for the same cell are equivalent-quality measurements, and the newest one wins.
 - **The post-abort step can never clobber a real result.** It only writes `aborted` if the cell is *still* in-flight from its **own** `runId` + `runAttempt` -- re-checked on every retry attempt against freshly synced state -- so a `done`/`failed` that lands mid-loop (or another run's takeover) makes it back off to a no-op.
@@ -122,25 +123,35 @@ The rot this framework exists to kill is the eternal "(in flight)" cell. Two mec
 
 ## Storage layout and history
 
-Results live on an orphan **`results` branch** of the repository the workflow runs in (created automatically on first write):
+Results live in the **repository wiki** of the repo the workflow runs in -- a wiki is itself a git repository (`<repo>.wiki.git`, branch `master`), so the same storage engine drives it and the table gets a first-class rendered home at `/wiki/<page>`:
 
 ```
-results branch
-├── README.md               # auto-maintained index of result pages
-├── Profiling-Results.md    # the rendered page (<page>.md per matrix config)
+<repo>.wiki.git (branch master)
+├── Home.md                 # auto-maintained index of result pages (only if not hand-written)
+├── Profiling-Results.md    # the rendered page (wiki page name = config `page`)
 └── data/
     └── demo/               # <matrix id>
         ├── fib--O0.json    # one file per recorded cell
         └── ...
 ```
 
-Browsable history is free because storage is git: [the page's change history](https://github.com/wow-look-at-my/profiling-results-matrix/commits/results/Profiling-Results.md) shows one commit per cell write, and `git log` on the branch is the full audit trail. The rendered page links its producing run in every cell and in the header line.
+**The one wiki catch -- a human must bootstrap it once.** GitHub only creates a wiki's git repository when the first page is made by hand in the web UI: pushing to an *uninitialized* wiki returns `Repository not found` even for `GITHUB_TOKEN` with `contents: write` (verified empirically -- probe run [29009602939](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29009602939)), and no API can create it. Once any page exists (repo **Wiki** tab, "Create the first page", any content), `GITHUB_TOKEN` pushes to the wiki work fine.
 
-**Why not the repo wiki?** It was the preferred target (also a git repo), but GitHub only creates a wiki's git repository when the first page is made by hand in the web UI: pushing to an uninitialized wiki returns `Repository not found` even for `GITHUB_TOKEN` with `contents: write` (verified empirically -- probe run [29009602939](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29009602939)), and no API can create it. The storage backend is a single function (`resolveStorage` in [src/main.ts](src/main.ts)); if the wiki ever gets bootstrapped manually, pointing the store at it is a ~6 line change.
+The config's `storage` field decides how to handle that:
+
+| `storage` | Behavior |
+|---|---|
+| `auto` (default) | Use the wiki iff its git repo exists. If the probe says *repository not found*, fall back to an orphan **`results` branch** of the same repo (identical layout, `README.md` as the index, page browsable at `/blob/results/<page>.md`) and emit a prominent notice explaining the bootstrap step. Any **other** probe failure (auth, network) fails the step loudly -- a definitive not-found is the only fallback trigger. |
+| `wiki` | Pin the wiki; if it does not exist, fail loudly with the bootstrap instructions. |
+| `results-branch` | Pin the `results` branch; the wiki is never probed. |
+
+Note `auto` re-decides per write: results recorded on the `results` branch before the wiki was bootstrapped stay there and do **not** migrate automatically (this repo's own pre-wiki history lives on its [`results` branch](https://github.com/wow-look-at-my/profiling-results-matrix/blob/results/Profiling-Results.md)).
+
+Browsable history is free because storage is git: [the page's change history](https://github.com/wow-look-at-my/profiling-results-matrix/wiki/Profiling-Results/_history) shows one commit per cell write, and `git log` on the wiki repo is the full audit trail. The rendered page links its producing run in every cell and in the header line.
 
 ## The demo
 
-[`demo.yml`](.github/workflows/demo.yml) fakes a parallel profiling fan-out against this repo's real `results` branch and produces [the live table](https://github.com/wow-look-at-my/profiling-results-matrix/blob/results/Profiling-Results.md) with every state: three normal in-flight -> done cells (one held in-flight for ~4 minutes so you can watch the live page flip), a stale epoch-2 backfill, a job that dies without reporting (post step -> aborted), an explicit `failed` report, an untouched empty cell, and a backdated guard-off in-flight that renders lost. All jobs start simultaneously, so the logs show the push-retry loop absorbing real collisions. Its `reset` input wipes the matrix data first for a clean slate.
+[`demo.yml`](.github/workflows/demo.yml) fakes a parallel profiling fan-out against this repo's real wiki and produces [the live table](https://github.com/wow-look-at-my/profiling-results-matrix/wiki/Profiling-Results) with every state: three normal in-flight -> done cells (one held in-flight for ~4 minutes so you can watch the live page flip), a stale epoch-2 backfill, a job that dies without reporting (post step -> aborted), an explicit `failed` report, an untouched empty cell, and a backdated guard-off in-flight that renders lost. All jobs start simultaneously, so the logs show the push-retry loop absorbing real collisions. Its `reset` input wipes the matrix data first for a clean slate.
 
 ## Development
 

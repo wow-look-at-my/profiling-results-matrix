@@ -1,7 +1,8 @@
 name: Demo
 
-# Fakes a set of profiling runs against this repo's REAL results branch,
-# exercising every state the framework renders:
+# Fakes a set of profiling runs against this repo's REAL wiki (storage mode
+# 'auto' resolves to it now that it exists), exercising every state the
+# framework renders:
 #
 #   fib/O0     in-flight -> done 812.4
 #   fib/O1     in-flight -> (4 min "benchmark") -> done 401.7   <- watch the live page flip
@@ -19,7 +20,7 @@ name: Demo
 # same window reliably. Expect "push rejected ... will re-fetch and re-apply"
 # retry lines in these logs: that is the concurrency loop working as designed.
 #
-# Live page: https://github.com/wow-look-at-my/profiling-results-matrix/blob/results/Profiling-Results.md
+# Live page: https://github.com/wow-look-at-my/profiling-results-matrix/wiki/Profiling-Results
 
 on:
   workflow_dispatch:
@@ -28,6 +29,10 @@ on:
         description: 'Wipe all recorded demo cells first (clean slate)'
         type: boolean
         default: false
+  # TEMPORARY (remove before merge): session tokens cannot workflow_dispatch,
+  # so exercise the demo on push while iterating; push-triggered runs reset.
+  push:
+    branches: [claude/profiling-results-matrix]
 
 permissions:
   contents: write
@@ -43,7 +48,7 @@ jobs:
           name: action-dist
           path: dist/
       - name: Reset matrix data
-        if: inputs.reset
+        if: inputs.reset || github.event_name == 'push'
         uses: ./
         with:
           status: reset
@@ -89,7 +94,7 @@ jobs:
         with:
           cell: fib/O1
           status: in-flight
-      # Long enough for a human to watch the live page show ⏳ in flight and
+      # Long enough for a human to watch the live page show "in flight" and
       # then flip to the measured value -- incremental updates, no batching.
       - name: Benchmark (pretend, slow)
         run: sleep 240
@@ -214,7 +219,7 @@ jobs:
         id: past
         run: echo "ts=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       # Backdated in-flight with the post guard disabled: nothing ever reports
-      # this cell, so it stays in-flight and renders as 👻 lost (TTL 60 min).
+      # this cell, so it stays in-flight and renders as "lost" (TTL 60 min).
       # This emulates a runner that hard-died before even the post step ran.
       - name: Line up on a clock boundary (reliably collide the first writes)
         run: sleep $(( 90 - $(date +%s) % 90 ))

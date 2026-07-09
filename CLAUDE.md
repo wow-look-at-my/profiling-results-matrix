@@ -1,6 +1,6 @@
 # profiling-results-matrix
 
-A single root-level GitHub Action (`action.yml` at the repo root, `runs.using: node24`) that maintains a self-updating profiling results table on the repo's `results` branch. See README.md for the full user-facing contract.
+A single root-level GitHub Action (`action.yml` at the repo root, `runs.using: node24`) that maintains a self-updating profiling results table on the repo's wiki (with a `results`-branch fallback until the wiki exists). See README.md for the full user-facing contract.
 
 ## Structure
 
@@ -9,7 +9,7 @@ A single root-level GitHub Action (`action.yml` at the repo root, `runs.using: n
 - `profiling-matrix.config.ts` -- the DEMO matrix for this repo (exercised by demo.yml). Other repos bring their own config; the `config` input names the path.
 - `scripts/orphan-release.sh` -- release script, vendored and adapted from `wow-look-at-my/actions@orphan-release` for a root action: publishes the built action as orphan tags `v<version>` + moving `latest` (instead of the monorepo's `<dir>#<version>` scheme).
 - `.github/actions/setup/` -- internal composite (node/pnpm/just + `just build`) shared by the workflows.
-- `.github/workflows/`: `ci.yml` (build + test on push), `release.yml` (build/test/validate on every push; tag publish master-only), `demo.yml` (workflow_dispatch; fakes a parallel profiling fan-out against the real results branch, exercising every rendered state; `reset` input wipes the matrix data first).
+- `.github/workflows/`: `ci.yml` (build + test on push), `release.yml` (build/test/validate on every push; tag publish master-only), `demo.yml` (workflow_dispatch; fakes a parallel profiling fan-out against the real wiki, exercising every rendered state; `reset` input wipes the matrix data first).
 
 ## Build and test
 
@@ -22,6 +22,6 @@ Org conventions that apply here: **no `scripts` in package.json** (justfile inst
 
 ## Storage and concurrency model
 
-Results are stored on an orphan `results` branch of the caller repository: one JSON file per cell (`data/<matrix id>/<rowKey>--<colKey>.json`) plus the rendered page (`<page>.md`) and an auto-maintained `README.md` index. The page is derived state: every write regenerates it in full from config + all cell files. The wiki was the preferred storage and was probed empirically -- pushing to an uninitialized wiki repo fails with `Repository not found` even for GITHUB_TOKEN with `contents: write` (GitHub only creates the wiki git repo when a first page is made by hand in the web UI). `resolveStorage()` in src/main.ts is the single place to swap backends.
+Results live in the caller repo's **wiki** by default: a wiki is itself a git repo (`<repo>.wiki.git`, branch `master`) holding one JSON file per cell (`data/<matrix id>/<rowKey>--<colKey>.json`), the rendered page (`<page>.md`, browsable at `/wiki/<page>`) and an auto-maintained `Home.md` index (only written when Home.md is absent, marker-owned, or still GitHub's first-page boilerplate "Welcome to the X wiki!"). The page is derived state: every write regenerates it in full from config + all cell files. The one wiki catch, probed empirically: GitHub only creates the wiki git repo when a human creates the first page in the web UI (pushing to an uninitialized wiki fails with `Repository not found` even for GITHUB_TOKEN with `contents: write`; no API exists). The config `storage` field handles it: `auto` (default) probes the wiki with `git ls-remote` and falls back to an orphan `results` branch of the caller repo (same layout, `README.md` index, page at `/blob/results/<page>.md`) iff the probe answers a definitive repository-not-found -- any other failure (auth, network) fails loudly, never a silent fallback; `wiki`/`results-branch` pin one backend (pinned wiki that doesn't exist = loud failure carrying the bootstrap instructions). `resolveStorage()` in src/main.ts is the single decision point. This repo's own wiki was hand-bootstrapped on 2026-07-09; pre-switch demo history stays on the `results` branch (kept, not migrated).
 
 Every write runs in `GitStore.update()`: clone/refresh the branch, run the mutation (write own cell file, re-render page), commit, push. A non-fast-forward rejection means a concurrent writer won; the store fetches, hard-resets to the new head, re-runs the whole mutation on the fresh state and pushes again (8 attempts, jittered 1-5 s backoff), so derived state never conflicts and history stays one-commit-per-write. Same-cell races are last-writer-wins. The post step's auto-abort only fires if the cell is still in-flight from its own runId+runAttempt, re-checked inside every retry attempt, so it can never overwrite a real report. Exhausted retries fail the step loudly -- results are never silently dropped.
