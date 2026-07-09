@@ -12,9 +12,10 @@ name: Demo
 #   matmul/O2  never touched                                    -> stays empty
 #   matmul/O3  in-flight backdated 2h, post guard off           -> LOST (TTL 60 min)
 #
-# All jobs start together after `prepare`, so their first writes collide on
-# purpose -- the push-retry loop in the action is expected to show
-# "push rejected ... will re-fetch and re-apply" lines in these logs.
+# `prepare` builds the action bundle once and shares it as an artifact, so the
+# reporter jobs start near-simultaneously and their first writes pile up on
+# the results branch on purpose -- expect "push rejected ... will re-fetch and
+# re-apply" retry lines in these logs (that is the concurrency loop working).
 #
 # Live page: https://github.com/wow-look-at-my/profiling-results-matrix/blob/results/Profiling-Results.md
 
@@ -40,6 +41,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
+      - uses: actions/upload-artifact@v4
+        with:
+          name: action-dist
+          path: dist/
       - name: Reset matrix data
         if: inputs.reset
         uses: ./
@@ -51,7 +56,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: dist
       - name: Start profiling fib/O0
         uses: ./
         with:
@@ -71,7 +79,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: dist
       - name: Start profiling fib/O1
         uses: ./
         with:
@@ -93,7 +104,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: dist
       - name: Start profiling fib/O2
         uses: ./
         with:
@@ -114,7 +128,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: dist
       # A result measured against epoch 2 while the config is at epoch 3:
       # it records fine but renders struck through until re-measured.
       - name: Report backfilled result from epoch 2
@@ -135,7 +152,10 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: dist
       - name: Start profiling matmul/O0
         uses: ./
         with:
@@ -151,7 +171,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: dist
       - name: Start profiling matmul/O1
         uses: ./
         with:
@@ -174,7 +197,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: dist
       - name: Compute a start timestamp 2 hours in the past
         id: past
         run: echo "ts=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
