@@ -19,6 +19,11 @@ name: Demo
 # Live page: https://github.com/wow-look-at-my/profiling-results-matrix/blob/results/Profiling-Results.md
 
 on:
+  # TEMPORARY while iterating on this branch: the session PAT cannot use
+  # `gh workflow run`, so pushes trigger the demo. Removed before finishing --
+  # the final demo.yml is workflow_dispatch only.
+  push:
+    branches: [claude/profiling-results-matrix]
   workflow_dispatch:
     inputs:
       reset:
