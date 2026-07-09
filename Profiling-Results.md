@@ -1,10 +1,10 @@
 # Demo profiling results
 
-<sub>matrix `demo` · epoch **3** · last update 2026-07-09 10:29 UTC · `fib/O2` → done by [run 29011612813](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813)</sub>
+<sub>matrix `demo` · epoch **3** · last update 2026-07-09 10:32 UTC · `fib/O1` → done by [run 29011612813](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813)</sub>
 
 | | -O0 | -O1 | -O2 | -O3 |
 |---|---|---|---|---|
-| `fib(35)` (recursive) | [**812.4 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813) | [⏳ in flight](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813) <sub>started 0m ago</sub> | [**213.9 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813) | ~~[**95.0 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813)~~ <sub>e2</sub> |
+| `fib(35)` (recursive) | [**812.4 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813) | [**401.7 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813) | [**213.9 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813) | ~~[**95.0 ms**](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813)~~ <sub>e2</sub> |
 | 512×512 matmul | [💥 aborted](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813) <sub>job ended without reporting a result</sub> | [❌ failed](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813) <sub>benchmark segfaulted</sub> | — | [👻 lost](https://github.com/wow-look-at-my/profiling-results-matrix/actions/runs/29011612813) <sub>started 2h ago</sub> |
 
 ### Legend
