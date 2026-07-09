@@ -1,0 +1,69 @@
+name: Profiling Results Matrix
+version: 1
+description: >-
+  Record one cell of a profiling results matrix and re-render the results table
+  on the repository's results branch. Incremental (cells update
+  independently), concurrency-safe (parallel reporters never clobber each
+  other), and robust to dying jobs (a post step marks unreported cells
+  aborted; a TTL renders long-dead in-flight entries as lost).
+
+inputs:
+  status:
+    description: >-
+      What to record: "in-flight" (job started measuring the cell), "done"
+      (report a measured value), "failed" (report an explicit failure),
+      "render" (no cell write; re-render the page from current config + data,
+      e.g. after an epoch bump), or "reset" (maintenance: wipe all recorded
+      cells of this matrix and re-render).
+    required: true
+  cell:
+    description: >-
+      Cell address "<rowKey>/<colKey>" using keys from the matrix config.
+      Required for in-flight/done/failed; not allowed for render/reset.
+    required: false
+  value:
+    description: 'Measured value for status=done (e.g. "213.9"); rendered with the config unit.'
+    required: false
+  note:
+    description: 'Optional free text rendered small in the cell (e.g. a failure reason).'
+    required: false
+  epoch:
+    description: >-
+      Integer override for the epoch this result was measured against.
+      Default: the effective epoch from the config (max of global/row/column).
+      Results recorded with an older epoch render struck through (stale).
+    required: false
+  started-at:
+    description: 'ISO 8601 override for the start timestamp (advanced/backfill).'
+    required: false
+  finished-at:
+    description: 'ISO 8601 override for the finish timestamp (advanced/backfill).'
+    required: false
+  post-guard:
+    description: >-
+      For status=in-flight: when "true" (default), a post step runs at job end
+      (even on failure/cancellation) and marks the cell "aborted" if it is
+      still in-flight from this run, i.e. the job died without reporting. Set
+      to "false" to leave the cell in-flight regardless.
+    required: false
+    default: 'true'
+  config:
+    description: >-
+      Workspace-relative path to the matrix config file. The workflow must
+      have checked out the repository (actions/checkout) for this to resolve.
+    required: false
+    default: 'profiling-matrix.config.ts'
+  token:
+    description: 'Token used to push to the results branch; needs contents: write.'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  page-url:
+    description: 'URL of the rendered results page.'
+
+runs:
+  using: node24
+  main: dist/index.js
+  post: dist/index.js
+  post-if: always()
