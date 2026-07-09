@@ -5,7 +5,7 @@ import { effectiveEpoch, loadConfig, parseCellRef } from './config';
 import { readCell, writeCell } from './cells';
 import { readActionEnv, type ActionEnv } from './env';
 import { writeRenderedPage } from './publish';
-import { GitStore } from './store';
+import { GitStore, remoteRepoExists } from './store';
 import type { CellData, MatrixConfig, Storage } from './types';
 
 /** State key: cell the post step must guard (set for in-flight reports). */
@@ -48,20 +48,52 @@ export async function runMain(): Promise<void> {
 }
 
 /**
- * Storage backend: an orphan `results` branch of the caller repository.
+ * Storage backends.
  *
- * The repo wiki would be the natural home, but GitHub only creates the wiki
- * git repository when the first page is made by hand in the web UI; pushing
- * to an uninitialized wiki returns "Repository not found" even for
- * GITHUB_TOKEN with contents: write (verified empirically from an Actions
- * run), and no API can create it. A branch gives the same properties: one
- * JSON file per cell, a rendered page derived from them, and free browsable
- * history. To move to the wiki (once bootstrapped by hand), only this
- * function has to change: remoteUrl `<server>/<repo>.wiki.git`, branch
- * `master`, pageUrl `<server>/<repo>/wiki/<page>`, historyUrl
- * `<pageUrl>/_history`, indexFile `Home.md`, indexLinkTarget `<page>`.
+ * The repository wiki is the primary home: a wiki is itself a git repository
+ * (`<repo>.wiki.git`, branch `master`), so the same GitStore drives it. The
+ * one catch: GitHub only creates that git repository when a human creates the
+ * first wiki page in the web UI -- pushing to an uninitialized wiki returns
+ * "Repository not found" even for GITHUB_TOKEN with `contents: write`
+ * (verified empirically from an Actions run), and no API can create it. So
+ * 'auto' (the default) probes the wiki and falls back to an orphan `results`
+ * branch of the caller repository -- same file layout, same properties --
+ * until the wiki is bootstrapped. Only a definitive "repository not found"
+ * triggers the fallback; any other probe failure (auth, network) throws.
  */
-export function resolveStorage(env: ActionEnv, config: MatrixConfig): Storage {
+export async function resolveStorage(
+  env: ActionEnv,
+  config: MatrixConfig,
+  token?: string,
+  probe: (remoteUrl: string, token?: string) => Promise<boolean> = remoteRepoExists,
+): Promise<Storage> {
+  const mode = config.storage ?? 'auto';
+  if (mode === 'results-branch') return branchStorage(env, config);
+
+  const wiki = wikiStorage(env, config);
+  if (await probe(wiki.remoteUrl, token)) {
+    core.info(`storage: using the repository wiki (${wiki.remoteUrl})`);
+    return wiki;
+  }
+  const bootstrap =
+    `the wiki git repository (${wiki.remoteUrl}) does not exist. GitHub only creates it when a ` +
+    `human creates the first wiki page in the web UI (${env.serverUrl}/${env.repository}/wiki, ` +
+    '"Create the first page", any content) -- no API or token can do it. (A token that cannot ' +
+    'read the repository at all is answered with the same "not found".)';
+  if (mode === 'wiki') {
+    throw new Error(`storage: the config pins storage to "wiki", but ${bootstrap}`);
+  }
+  core.notice(
+    `storage: falling back to the "results" branch because ${bootstrap} Once the wiki is ` +
+      'bootstrapped, storage mode "auto" switches to it on the next write (already-recorded ' +
+      'results do not migrate automatically).',
+    { title: 'profiling-results-matrix: wiki not bootstrapped' },
+  );
+  return branchStorage(env, config);
+}
+
+/** The orphan `results` branch of the caller repository. */
+function branchStorage(env: ActionEnv, config: MatrixConfig): Storage {
   const branch = 'results';
   return {
     remoteUrl: `${env.serverUrl}/${env.repository}.git`,
@@ -71,6 +103,19 @@ export function resolveStorage(env: ActionEnv, config: MatrixConfig): Storage {
     historyUrl: `${env.serverUrl}/${env.repository}/commits/${branch}/${config.page}.md`,
     indexFile: 'README.md',
     indexLinkTarget: `${config.page}.md`,
+  };
+}
+
+/** The repository wiki: git repo `<repo>.wiki.git`, pages on branch `master`. */
+function wikiStorage(env: ActionEnv, config: MatrixConfig): Storage {
+  return {
+    remoteUrl: `${env.serverUrl}/${env.repository}.wiki.git`,
+    branch: 'master',
+    pageFile: `${config.page}.md`,
+    pageUrl: `${env.serverUrl}/${env.repository}/wiki/${config.page}`,
+    historyUrl: `${env.serverUrl}/${env.repository}/wiki/${config.page}/_history`,
+    indexFile: 'Home.md',
+    indexLinkTarget: config.page,
   };
 }
 
@@ -86,12 +131,13 @@ export async function setup(): Promise<Setup> {
   const env = readActionEnv();
   const configInput = core.getInput('config') || 'profiling-matrix.config.ts';
   const config = await loadConfig(path.resolve(env.workspace, configInput));
-  const storage = resolveStorage(env, config);
+  const token = core.getInput('token');
+  const storage = await resolveStorage(env, config, token);
   const store = new GitStore({
     remoteUrl: storage.remoteUrl,
     branch: storage.branch,
     dir: fs.mkdtempSync(path.join(env.tempDir, 'profiling-results-matrix-')),
-    token: core.getInput('token'),
+    token,
   });
   return { env, config, store, storage };
 }

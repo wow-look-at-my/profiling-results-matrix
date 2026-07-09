@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { GitStore } from './store';
+import { GitStore, isRepoNotFound, remoteRepoExists } from './store';
 
 function makeRemote(): { root: string; remote: string } {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'prm-store-test-'));
@@ -102,6 +102,32 @@ test('a mutation that changes nothing skips the commit', async () => {
     return { message: 'no-op rewrite' };
   });
   assert.equal(result.pushed, false);
+});
+
+test('isRepoNotFound recognizes GitHub\'s "repository not found" and nothing else', () => {
+  // Both lines GitHub answers a clone/ls-remote of a nonexistent repo with:
+  assert.equal(isRepoNotFound('remote: Repository not found.'), true);
+  assert.equal(isRepoNotFound("fatal: repository 'https://github.com/o/r.wiki.git/' not found"), true);
+  assert.equal(
+    isRepoNotFound(
+      "remote: Repository not found.\nfatal: repository 'https://github.com/o/r.wiki.git/' not found",
+    ),
+    true,
+  );
+  // Auth and network failures must NOT look like not-found (they fail loudly):
+  assert.equal(isRepoNotFound('remote: Invalid username or password.'), false);
+  assert.equal(isRepoNotFound("fatal: unable to access 'https://github.com/o/r.git/': The requested URL returned error: 403"), false);
+  assert.equal(isRepoNotFound("fatal: unable to access 'https://github.com/o/r.git/': Could not resolve host: github.com"), false);
+  // The words must appear on the SAME line to count:
+  assert.equal(isRepoNotFound('error: repository is fine\nfatal: object not found'), false);
+});
+
+test('remoteRepoExists: true for an existing remote, throws for a non-not-found failure', async () => {
+  const { root, remote } = makeRemote();
+  assert.equal(await remoteRepoExists(remote), true);
+  // A missing local path fails with "does not appear to be a git repository",
+  // which is NOT the definitive GitHub not-found answer -> must throw.
+  await assert.rejects(remoteRepoExists(path.join(root, 'missing.git')), /could not probe remote/);
 });
 
 test('retries exhaust loudly when the push can never succeed', async () => {

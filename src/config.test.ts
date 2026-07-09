@@ -59,6 +59,15 @@ test('empty axes and bad TTL are rejected', () => {
   assert.match(err.message, /inFlightTtlMinutes: must be a positive number/);
 });
 
+test('storage mode is optional but must be a known value', () => {
+  const ok = valid();
+  ok.storage = 'wiki';
+  assert.equal(validateConfig(ok, 't').storage, 'wiki');
+  const bad = valid();
+  bad.storage = 'gist';
+  assert.throws(() => validateConfig(bad, 't'), /storage: must be one of wiki, results-branch, auto when present, got "gist"/);
+});
+
 test('effectiveEpoch is the max of global, row and column epochs', () => {
   const cfg = validateConfig(valid(), 't');
   const [fib, matmul] = cfg.rows;

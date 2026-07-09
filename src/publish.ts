@@ -6,6 +6,14 @@ import type { MatrixConfig, Storage } from './types';
 
 const INDEX_MARKER = '<!-- profiling-results-matrix index -->';
 
+/**
+ * GitHub prefills the wiki's very first page ("Create the first page") with
+ * exactly "Welcome to the <name> wiki!". A Home.md still carrying only that
+ * boilerplate was never really written by anyone -- take it over as the
+ * index. Anything else without our marker is hand-maintained and untouchable.
+ */
+const WIKI_BOILERPLATE_RE = /^Welcome to the [^\n]+ wiki!$/;
+
 export interface WriteMeta {
   now: Date;
   /** What this write did, e.g. "`fib/O2` → done" or "re-render". */
@@ -29,8 +37,9 @@ export function writeRenderedPage(dir: string, config: MatrixConfig, storage: St
 
 /**
  * Keep a small index file pointing at the results page(s). Only files we own
- * (carrying INDEX_MARKER) are ever rewritten; a hand-maintained index is left
- * alone.
+ * (carrying INDEX_MARKER) -- or a wiki Home.md still holding GitHub's
+ * untouched first-page boilerplate -- are ever rewritten; a hand-maintained
+ * index is left alone.
  */
 export function ensureIndex(dir: string, config: MatrixConfig, storage: Storage): void {
   const indexPath = path.join(dir, storage.indexFile);
@@ -38,10 +47,13 @@ export function ensureIndex(dir: string, config: MatrixConfig, storage: Storage)
 
   if (fs.existsSync(indexPath)) {
     const existing = fs.readFileSync(indexPath, 'utf8');
-    if (!existing.includes(INDEX_MARKER)) return; // hand-maintained; leave alone
-    for (const line of existing.split('\n')) {
-      const m = /^- \[.*\]\((\S+)\)$/.exec(line.trim());
-      if (m && !links.has(m[1])) links.set(m[1], line.trim());
+    const ours = existing.includes(INDEX_MARKER);
+    if (!ours && !WIKI_BOILERPLATE_RE.test(existing.trim())) return; // hand-maintained; leave alone
+    if (ours) {
+      for (const line of existing.split('\n')) {
+        const m = /^- \[.*\]\((\S+)\)$/.exec(line.trim());
+        if (m && !links.has(m[1])) links.set(m[1], line.trim());
+      }
     }
   }
 
@@ -51,7 +63,7 @@ export function ensureIndex(dir: string, config: MatrixConfig, storage: Storage)
     '',
     ...[...links.values()].sort(),
     '',
-    `<sub>This branch is maintained automatically by [profiling-results-matrix](${FRAMEWORK_URL}).</sub>`,
+    `<sub>This index is maintained automatically by [profiling-results-matrix](${FRAMEWORK_URL}).</sub>`,
     '',
   ].join('\n');
   fs.writeFileSync(indexPath, body);

@@ -13,7 +13,12 @@ import type { MatrixConfig } from './src/types';
 const config = {
   id: 'demo',
   title: 'Demo profiling results',
-  page: 'Profiling-Results', // rendered to Profiling-Results.md on the results branch
+  page: 'Profiling-Results', // wiki page name (or Profiling-Results.md on the results branch)
+  // Where results live: 'auto' (default) uses the repo wiki iff its git repo
+  // exists (a human must have created the first page in the web UI once) and
+  // otherwise falls back to an orphan `results` branch; 'wiki' or
+  // 'results-branch' pin one backend.
+  storage: 'auto',
   // Bump to invalidate every recorded result (they render struck through
   // until re-measured). Rows/cols accept per-axis `epoch` overrides; the
   // effective epoch of a cell is max(global, row, col).

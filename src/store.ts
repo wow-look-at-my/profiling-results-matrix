@@ -24,6 +24,45 @@ export interface UpdateOutcome {
   message: string;
 }
 
+/**
+ * Header-based auth, the same scheme actions/checkout uses. The base64
+ * credential would not be auto-masked in logs, so register it.
+ */
+function authConfigArgs(token?: string): string[] {
+  if (!token) return [];
+  const basic = Buffer.from(`x-access-token:${token}`).toString('base64');
+  core.setSecret(basic);
+  return ['-c', `http.extraheader=AUTHORIZATION: basic ${basic}`];
+}
+
+/** True when git's failure output says the remote repository does not exist. */
+export function isRepoNotFound(gitOutput: string): boolean {
+  // GitHub answers a clone/ls-remote of a nonexistent repo with
+  //   remote: Repository not found.
+  //   fatal: repository 'https://github.com/o/r.wiki.git/' not found
+  // Match per line so unrelated occurrences of the words cannot combine.
+  return gitOutput.split('\n').some((line) => /repository\b.*\bnot found/i.test(line));
+}
+
+/**
+ * Does the remote repository exist? Only a definitive "repository not found"
+ * answer returns false; any other failure (auth, network, ...) throws, so
+ * callers can never mistake an outage for a missing repo. Note that GitHub
+ * reports a repo the token cannot read at all as "not found" too.
+ */
+export async function remoteRepoExists(remoteUrl: string, token?: string): Promise<boolean> {
+  const res = await getExecOutput('git', [...authConfigArgs(token), 'ls-remote', remoteUrl, 'HEAD'], {
+    ignoreReturnCode: true,
+    silent: true,
+  });
+  if (res.exitCode === 0) return true;
+  if (isRepoNotFound(`${res.stderr}\n${res.stdout}`)) return false;
+  throw new Error(
+    `storage: could not probe remote ${remoteUrl} (git ls-remote exited ${res.exitCode}): ` +
+      `${(res.stderr || res.stdout).trim()}`,
+  );
+}
+
 export interface UpdateResult {
   /** False when the mutation no-opped or produced no changes. */
   pushed: boolean;
@@ -47,7 +86,7 @@ export class GitStore {
   private readonly attempts: number;
   private readonly minDelayMs: number;
   private readonly maxDelayMs: number;
-  private readonly configArgs: string[] = [];
+  private readonly configArgs: string[];
   private ready = false;
 
   constructor(opts: StoreOptions) {
@@ -57,13 +96,7 @@ export class GitStore {
     this.attempts = opts.attempts ?? 8;
     this.minDelayMs = opts.minDelayMs ?? 1000;
     this.maxDelayMs = opts.maxDelayMs ?? 5000;
-    if (opts.token) {
-      // Header-based auth, the same scheme actions/checkout uses. The base64
-      // credential would not be auto-masked in logs, so register it.
-      const basic = Buffer.from(`x-access-token:${opts.token}`).toString('base64');
-      core.setSecret(basic);
-      this.configArgs.push('-c', `http.extraheader=AUTHORIZATION: basic ${basic}`);
-    }
+    this.configArgs = authConfigArgs(opts.token);
   }
 
   async update(mutate: (dir: string) => Promise<UpdateOutcome | null>): Promise<UpdateResult> {

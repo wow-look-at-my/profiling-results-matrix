@@ -15,6 +15,19 @@ export interface AxisEntry {
 }
 
 /**
+ * Which backend holds the results.
+ *
+ * - 'auto' (default): use the repository wiki iff its git repo exists;
+ *   otherwise fall back to the `results` branch with a prominent notice.
+ *   (GitHub only creates the wiki git repo when a human creates the first
+ *   page in the web UI -- there is no API for it.)
+ * - 'wiki': pin the wiki; fail loudly (with the bootstrap instructions) if
+ *   its git repo does not exist.
+ * - 'results-branch': pin the orphan `results` branch of the caller repo.
+ */
+export type StorageMode = 'wiki' | 'results-branch' | 'auto';
+
+/**
  * Shape of a matrix config file (see profiling-matrix.config.ts). The action
  * validates this at runtime with field-path error messages; the TypeScript
  * type is a convenience for configs authored inside this repo.
@@ -35,6 +48,8 @@ export interface MatrixConfig {
   unit?: string;
   /** In-flight entries older than this render as lost (the job likely died). */
   inFlightTtlMinutes: number;
+  /** Storage backend selection (see StorageMode). Default: 'auto'. */
+  storage?: StorageMode;
   rows: AxisEntry[];
   cols: AxisEntry[];
 }

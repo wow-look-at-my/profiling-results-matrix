@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import { pathToFileURL } from 'url';
-import type { AxisEntry, MatrixConfig } from './types';
+import type { AxisEntry, MatrixConfig, StorageMode } from './types';
 
 /** Keys become file names and URL fragments, so keep them strictly safe. */
 export const KEY_RE = /^[A-Za-z0-9._-]+$/;
@@ -98,6 +98,10 @@ export function validateConfig(raw: unknown, source: string): MatrixConfig {
     cfg.inFlightTtlMinutes <= 0
   ) {
     bad('inFlightTtlMinutes', 'must be a positive number');
+  }
+  const storageModes: StorageMode[] = ['wiki', 'results-branch', 'auto'];
+  if (cfg.storage !== undefined && !storageModes.includes(cfg.storage as StorageMode)) {
+    bad('storage', `must be one of ${storageModes.join(', ')} when present, got ${JSON.stringify(cfg.storage)}`);
   }
 
   for (const axis of ['rows', 'cols'] as const) {
